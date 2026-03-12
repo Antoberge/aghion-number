@@ -481,10 +481,9 @@
     <svg class="network-canvas" id="network-svg"></svg>
     <div class="network-legend">
       <span><span class="legend-dot" style="background:#D1495B"></span> Aghion</span>
-      <span><span class="legend-dot" style="background:#2E86AB"></span> d=1 (coauthor)</span>
-      <span><span class="legend-dot" style="background:#1B998B"></span> d=2</span>
-      <span><span class="legend-dot" style="background:#E8871E"></span> d=3</span>
-      <span><span class="legend-dot" style="background:#7B2D8E"></span> d=4+</span>
+      <span><span class="legend-dot" style="background:#2E86AB"></span> Aghion coauthor (d=1)</span>
+      <span><span class="legend-dot" style="background:#1B998B"></span> d=2 from Aghion</span>
+      <span><span class="legend-dot" style="background:#ccc"></span> Not connected to Aghion</span>
     </div>
   </div>
 </div>
@@ -899,26 +898,25 @@ function showNetwork(centerId, centerName) {
   const neighbors = NEIGHBOR_DATA[centerId];
   const AGHION = 'pag175';
 
-  // Build nodes: center person + Aghion + neighbors (cap at 50 for readability)
-  // Prioritize: Aghion coauthors (d=1), then d=2, then closer distances
-  const sorted = [...neighbors].sort((a, b) => a.distance - b.distance);
-  const capped = sorted.slice(0, 50);
-
-  // Check which neighbors are also Aghion coauthors
-  const d1Set = new Set();
-  if (NEIGHBOR_DATA) {
-    for (const id of Object.keys(NEIGHBOR_DATA)) d1Set.add(id);
-  }
+  // Neighbors include those connected to Aghion (d=0,1,2) and those not in path_data (d=undefined)
+  // Cap at 60 for readability, prioritize: d=1 first, then d=2, then others
+  const sorted = [...neighbors].sort((a, b) => {
+    // Aghion first, then d=1, then d=2, then the rest
+    if (a.id === AGHION) return -1;
+    if (b.id === AGHION) return 1;
+    return a.distance - b.distance;
+  });
+  const capped = sorted.slice(0, 60);
 
   // Build node list
   const nodes = [];
   const nodeMap = {};
 
-  // Center node
+  // Center node (the d=1 coauthor)
   nodes.push({ id: centerId, name: centerName, distance: 1, isCenter: true });
   nodeMap[centerId] = 0;
 
-  // Aghion node (if in neighbors)
+  // Aghion node
   if (!nodeMap.hasOwnProperty(AGHION)) {
     nodes.push({ id: AGHION, name: 'Philippe Aghion', distance: 0, isCenter: false });
     nodeMap[AGHION] = nodes.length - 1;
@@ -931,21 +929,29 @@ function showNetwork(centerId, centerName) {
     nodeMap[n.id] = nodes.length - 1;
   }
 
-  // Build edges: center → each neighbor, and Aghion → any d=1 neighbor
+  // Build edges
   const edges = [];
-  const neighborIds = new Set(capped.map(n => n.id));
+
+  // Center → every neighbor (these are all real coauthor links)
   for (const n of capped) {
     if (n.id === centerId) continue;
-    edges.push({ source: nodeMap[centerId], target: nodeMap[n.id] });
+    const isAghionLink = n.id === AGHION;
+    const isD1Link = n.distance === 1; // neighbor is also an Aghion coauthor
+    edges.push({
+      source: nodeMap[centerId],
+      target: nodeMap[n.id],
+      type: isAghionLink ? 'aghion' : (isD1Link ? 'd1' : (n.distance <= 2 ? 'd2' : 'other'))
+    });
   }
-  // Add Aghion edges to d=1 nodes that are in our neighbor set
+
+  // Aghion → d=1 neighbors (show these Aghion connections)
   for (const n of capped) {
     if (n.distance === 1 && n.id !== centerId && n.id !== AGHION) {
-      edges.push({ source: nodeMap[AGHION], target: nodeMap[n.id] });
+      edges.push({ source: nodeMap[AGHION], target: nodeMap[n.id], type: 'aghion' });
     }
   }
   // Aghion → center
-  edges.push({ source: nodeMap[AGHION], target: nodeMap[centerId] });
+  edges.push({ source: nodeMap[AGHION], target: nodeMap[centerId], type: 'aghion' });
 
   // ── Force-directed layout (simple simulation) ──────────────────
   const W = svg.clientWidth || 780;
@@ -1023,16 +1029,33 @@ function showNetwork(centerId, centerName) {
   // ── Render SVG ─────────────────────────────────────────────────
   svg.innerHTML = '';
 
-  // Edges
-  for (const e of edges) {
+  // Edges — draw grey (other) first, then colored on top
+  const edgeSorted = [...edges].sort((a, b) => {
+    const order = { other: 0, d2: 1, d1: 2, aghion: 3 };
+    return (order[a.type] || 0) - (order[b.type] || 0);
+  });
+  for (const e of edgeSorted) {
     const a = nodes[e.source], b = nodes[e.target];
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
     line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
-    const isAghionEdge = a.id === AGHION || b.id === AGHION;
-    line.setAttribute('stroke', isAghionEdge ? '#D1495B' : '#ddd');
-    line.setAttribute('stroke-width', isAghionEdge ? '2' : '1');
-    line.setAttribute('stroke-opacity', isAghionEdge ? '0.5' : '0.4');
+    if (e.type === 'aghion') {
+      line.setAttribute('stroke', '#D1495B');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-opacity', '0.5');
+    } else if (e.type === 'd1') {
+      line.setAttribute('stroke', '#2E86AB');
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-opacity', '0.35');
+    } else if (e.type === 'd2') {
+      line.setAttribute('stroke', '#1B998B');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-opacity', '0.3');
+    } else {
+      line.setAttribute('stroke', '#ddd');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-opacity', '0.5');
+    }
     svg.appendChild(line);
   }
 
@@ -1049,10 +1072,8 @@ function showNetwork(centerId, centerName) {
       color = '#2E86AB'; radius = 8;
     } else if (n.distance === 2) {
       color = '#1B998B'; radius = 6;
-    } else if (n.distance === 3) {
-      color = '#E8871E'; radius = 5;
     } else {
-      color = '#7B2D8E'; radius = 5;
+      color = '#ccc'; radius = 5;
     }
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
