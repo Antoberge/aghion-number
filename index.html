@@ -364,6 +364,78 @@
     font-size: 0.8rem;
     margin-left: 4px;
   }
+
+  .path-node.clickable {
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .path-node.clickable:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(46,134,171,0.3);
+  }
+
+  .network-panel {
+    display: none;
+    margin: 24px auto 0;
+    max-width: 800px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .network-panel.active { display: block; }
+
+  .network-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+  }
+  .network-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+  }
+  .network-header .close-btn {
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #aaa;
+    border: none;
+    background: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .network-header .close-btn:hover { background: #f0f0f0; color: #666; }
+
+  .network-canvas {
+    width: 100%;
+    height: 500px;
+  }
+
+  .network-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    padding: 10px 20px 14px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 0.8rem;
+    color: #999;
+  }
+  .network-legend span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
 </style>
 </head>
 <body>
@@ -400,6 +472,21 @@
   <div class="histogram" id="histogram"></div>
 
   <div class="fun-fact" id="fun-fact"></div>
+
+  <div class="network-panel" id="network-panel">
+    <div class="network-header">
+      <h3 id="network-title">Network</h3>
+      <button class="close-btn" onclick="document.getElementById('network-panel').classList.remove('active')">✕</button>
+    </div>
+    <svg class="network-canvas" id="network-svg"></svg>
+    <div class="network-legend">
+      <span><span class="legend-dot" style="background:#D1495B"></span> Aghion</span>
+      <span><span class="legend-dot" style="background:#2E86AB"></span> d=1 (coauthor)</span>
+      <span><span class="legend-dot" style="background:#1B998B"></span> d=2</span>
+      <span><span class="legend-dot" style="background:#E8871E"></span> d=3</span>
+      <span><span class="legend-dot" style="background:#7B2D8E"></span> d=4+</span>
+    </div>
+  </div>
 </div>
 
 <p class="not-found" id="not-found">Researcher not found in the RePEc network.<br>They may not have a registered RePEc profile.</p>
@@ -562,7 +649,17 @@ function showResult(entry) {
       node.className = 'path-node';
       if (i === 0) node.classList.add('highlight');
       if (i === path.length - 1 && d > 0) node.classList.add('target');
-      node.textContent = nameMap[id] || id;
+      const nodeName = nameMap[id] || id;
+      node.textContent = nodeName;
+
+      // Make d=1 nodes clickable to show their network
+      const nodeEntry = nameIndex.find(e => e.id === id);
+      if (nodeEntry && nodeEntry.distance === 1) {
+        node.classList.add('clickable');
+        node.title = 'Click to explore ' + nodeName + "'s network";
+        node.addEventListener('click', () => showNetwork(id, nodeName));
+      }
+
       row.appendChild(node);
     });
 
@@ -779,7 +876,237 @@ async function init() {
   }
 }
 
+// ── Neighbor network visualization ────────────────────────────────
+let NEIGHBOR_DATA = null;
+
+async function loadNeighborData() {
+  try {
+    const resp = await fetch('neighbor_data.json');
+    NEIGHBOR_DATA = await resp.json();
+  } catch (e) {
+    console.warn('neighbor_data.json not available');
+  }
+}
+
+function showNetwork(centerId, centerName) {
+  if (!NEIGHBOR_DATA || !NEIGHBOR_DATA[centerId]) return;
+
+  const panel = document.getElementById('network-panel');
+  const svg = document.getElementById('network-svg');
+  document.getElementById('network-title').textContent =
+    centerName + "'s coauthor network";
+
+  const neighbors = NEIGHBOR_DATA[centerId];
+  const AGHION = 'pag175';
+
+  // Build nodes: center person + Aghion + neighbors (cap at 50 for readability)
+  // Prioritize: Aghion coauthors (d=1), then d=2, then closer distances
+  const sorted = [...neighbors].sort((a, b) => a.distance - b.distance);
+  const capped = sorted.slice(0, 50);
+
+  // Check which neighbors are also Aghion coauthors
+  const d1Set = new Set();
+  if (NEIGHBOR_DATA) {
+    for (const id of Object.keys(NEIGHBOR_DATA)) d1Set.add(id);
+  }
+
+  // Build node list
+  const nodes = [];
+  const nodeMap = {};
+
+  // Center node
+  nodes.push({ id: centerId, name: centerName, distance: 1, isCenter: true });
+  nodeMap[centerId] = 0;
+
+  // Aghion node (if in neighbors)
+  if (!nodeMap.hasOwnProperty(AGHION)) {
+    nodes.push({ id: AGHION, name: 'Philippe Aghion', distance: 0, isCenter: false });
+    nodeMap[AGHION] = nodes.length - 1;
+  }
+
+  // Neighbor nodes
+  for (const n of capped) {
+    if (nodeMap.hasOwnProperty(n.id)) continue;
+    nodes.push({ id: n.id, name: n.name, distance: n.distance, isCenter: false });
+    nodeMap[n.id] = nodes.length - 1;
+  }
+
+  // Build edges: center → each neighbor, and Aghion → any d=1 neighbor
+  const edges = [];
+  const neighborIds = new Set(capped.map(n => n.id));
+  for (const n of capped) {
+    if (n.id === centerId) continue;
+    edges.push({ source: nodeMap[centerId], target: nodeMap[n.id] });
+  }
+  // Add Aghion edges to d=1 nodes that are in our neighbor set
+  for (const n of capped) {
+    if (n.distance === 1 && n.id !== centerId && n.id !== AGHION) {
+      edges.push({ source: nodeMap[AGHION], target: nodeMap[n.id] });
+    }
+  }
+  // Aghion → center
+  edges.push({ source: nodeMap[AGHION], target: nodeMap[centerId] });
+
+  // ── Force-directed layout (simple simulation) ──────────────────
+  const W = svg.clientWidth || 780;
+  const H = 500;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // Initialize positions
+  const cx = W / 2, cy = H / 2;
+  nodes.forEach((n, i) => {
+    if (n.isCenter) {
+      n.x = cx; n.y = cy;
+    } else if (n.id === AGHION) {
+      n.x = cx - 120; n.y = cy - 80;
+    } else {
+      const angle = (i / nodes.length) * Math.PI * 2 + Math.random() * 0.5;
+      const r = 120 + Math.random() * 100;
+      n.x = cx + Math.cos(angle) * r;
+      n.y = cy + Math.sin(angle) * r;
+    }
+    n.vx = 0; n.vy = 0;
+  });
+
+  // Run simulation
+  const iterations = 200;
+  for (let iter = 0; iter < iterations; iter++) {
+    const alpha = 1 - iter / iterations;
+    const repulsion = 2500;
+    const attraction = 0.008;
+    const centerPull = 0.002;
+
+    // Repulsion between all nodes
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x;
+        let dy = nodes[j].y - nodes[i].y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let force = repulsion / (dist * dist);
+        let fx = (dx / dist) * force * alpha;
+        let fy = (dy / dist) * force * alpha;
+        nodes[i].vx -= fx; nodes[i].vy -= fy;
+        nodes[j].vx += fx; nodes[j].vy += fy;
+      }
+    }
+
+    // Attraction along edges
+    for (const e of edges) {
+      const a = nodes[e.source], b = nodes[e.target];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      let force = (dist - 80) * attraction * alpha;
+      let fx = (dx / dist) * force;
+      let fy = (dy / dist) * force;
+      a.vx += fx; a.vy += fy;
+      b.vx -= fx; b.vy -= fy;
+    }
+
+    // Pull toward center
+    for (const n of nodes) {
+      n.vx += (cx - n.x) * centerPull * alpha;
+      n.vy += (cy - n.y) * centerPull * alpha;
+    }
+
+    // Apply velocities
+    for (const n of nodes) {
+      n.x += n.vx * 0.8;
+      n.y += n.vy * 0.8;
+      n.vx *= 0.6;
+      n.vy *= 0.6;
+      // Bounds
+      n.x = Math.max(60, Math.min(W - 60, n.x));
+      n.y = Math.max(40, Math.min(H - 40, n.y));
+    }
+  }
+
+  // ── Render SVG ─────────────────────────────────────────────────
+  svg.innerHTML = '';
+
+  // Edges
+  for (const e of edges) {
+    const a = nodes[e.source], b = nodes[e.target];
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+    line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+    const isAghionEdge = a.id === AGHION || b.id === AGHION;
+    line.setAttribute('stroke', isAghionEdge ? '#D1495B' : '#ddd');
+    line.setAttribute('stroke-width', isAghionEdge ? '2' : '1');
+    line.setAttribute('stroke-opacity', isAghionEdge ? '0.5' : '0.4');
+    svg.appendChild(line);
+  }
+
+  // Nodes
+  for (const n of nodes) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    let color, radius;
+    if (n.id === AGHION) {
+      color = '#D1495B'; radius = 14;
+    } else if (n.isCenter) {
+      color = '#2E86AB'; radius = 14;
+    } else if (n.distance === 1) {
+      color = '#2E86AB'; radius = 8;
+    } else if (n.distance === 2) {
+      color = '#1B998B'; radius = 6;
+    } else if (n.distance === 3) {
+      color = '#E8871E'; radius = 5;
+    } else {
+      color = '#7B2D8E'; radius = 5;
+    }
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', n.x); circle.setAttribute('cy', n.y);
+    circle.setAttribute('r', radius);
+    circle.setAttribute('fill', color);
+    circle.setAttribute('stroke', '#fff');
+    circle.setAttribute('stroke-width', n.isCenter || n.id === AGHION ? '3' : '1.5');
+    g.appendChild(circle);
+
+    // Labels for important nodes
+    const showLabel = n.isCenter || n.id === AGHION || n.distance <= 1 || nodes.length <= 25;
+    if (showLabel) {
+      const parts = n.name.split(' ');
+      const shortName = n.isCenter || n.id === AGHION
+        ? n.name
+        : (parts.length > 1 ? parts[0][0] + '. ' + parts[parts.length - 1] : n.name);
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', n.x);
+      text.setAttribute('y', n.y - radius - 4);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', n.isCenter || n.id === AGHION ? '12' : '9');
+      text.setAttribute('font-weight', n.isCenter || n.id === AGHION ? '700' : '500');
+      text.setAttribute('fill', '#555');
+      text.textContent = shortName;
+      g.appendChild(text);
+    }
+
+    // Tooltip on hover
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${n.name} (d=${n.distance} from Aghion)`;
+    g.appendChild(title);
+
+    // Click to search
+    g.style.cursor = 'pointer';
+    g.addEventListener('click', () => {
+      const entry = nameIndex.find(e => e.id === n.id);
+      if (entry) {
+        document.getElementById('search').value = entry.name;
+        showResult(entry);
+        panel.classList.remove('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    svg.appendChild(g);
+  }
+
+  panel.classList.add('active');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 init();
+loadNeighborData();
 </script>
 </body>
 </html>
