@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Far From Aghion?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #fafafa;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px 40px;
+  }
+
+  h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: #111;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  .call-to-action {
+    font-size: 1.2rem;
+    color: #2E86AB;
+    font-weight: 600;
+    margin-bottom: 36px;
+  }
+
+  .search-box {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    margin-bottom: 40px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 1.15rem;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fff;
+  }
+
+  .search-box input:focus {
+    border-color: #2E86AB;
+  }
+
+  .search-box input::placeholder {
+    color: #bbb;
+  }
+
+  .autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+
+  .autocomplete-list.active { display: block; }
+
+  .autocomplete-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .autocomplete-item:last-child { border-bottom: none; }
+
+  .autocomplete-item:hover, .autocomplete-item.selected {
+    background: #f0f7fa;
+  }
+
+  .autocomplete-item .distance-badge {
+    font-size: 0.8rem;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .result {
+    text-align: center;
+    max-width: 800px;
+    width: 100%;
+    display: none;
+  }
+
+  .result.active { display: block; }
+
+  .distance-display {
+    font-size: 6rem;
+    font-weight: 800;
+    margin: 10px 0 4px;
+    line-height: 1;
+  }
+
+  .distance-label {
+    font-size: 1.15rem;
+    color: #888;
+    margin-bottom: 32px;
+  }
+
+  .path-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 0 auto;
+  }
+
+  .path-row {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+  }
+
+  .path-more {
+    font-size: 0.9rem;
+    color: #bbb;
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  .path-node {
+    background: #fff;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 1.05rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .path-node.highlight {
+    border-color: #2E86AB;
+    background: #f0f7fa;
+    color: #2E86AB;
+    font-weight: 700;
+  }
+
+  .path-node.target {
+    border-color: #D1495B;
+    background: #fdf0f2;
+    color: #D1495B;
+    font-weight: 700;
+  }
+
+  .path-arrow {
+    font-size: 1.4rem;
+    color: #ccc;
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: #999;
+    margin-top: 2px;
+  }
+
+  .fun-fact {
+    margin-top: 28px;
+    padding: 16px 24px;
+    background: #f8f8f8;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #666;
+    max-width: 500px;
+    line-height: 1.5;
+  }
+
+  .fun-fact strong { color: #444; }
+
+  .footer {
+    margin-top: auto;
+    padding-top: 60px;
+    font-size: 0.85rem;
+    color: #bbb;
+  }
+
+  .footer a { color: #aaa; }
+
+  .not-found {
+    color: #999;
+    font-size: 1.1rem;
+    font-style: italic;
+    display: none;
+  }
+
+  .not-found.active { display: block; }
+
+  .loading {
+    color: #aaa;
+    font-size: 1rem;
+    margin-top: 20px;
+  }
+
+  .leaderboard {
+    margin-top: 50px;
+    width: 100%;
+    max-width: 580px;
+    display: none;
+  }
+
+  .leaderboard.active { display: block; }
+
+  .leaderboard h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #222;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .leaderboard-sub {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #999;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    transition: background 0.15s;
+  }
+
+  .lb-row:hover { background: #f5f5f5; }
+
+  .lb-rank {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #ccc;
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .lb-rank.gold { color: #E6A817; }
+  .lb-rank.silver { color: #999; }
+  .lb-rank.bronze { color: #B87333; }
+
+  .lb-name {
+    flex: 1;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .lb-bar-wrap {
+    width: 180px;
+    flex-shrink: 0;
+  }
+
+  .lb-bar {
+    height: 10px;
+    border-radius: 5px;
+    background: #2E86AB;
+    opacity: 0.7;
+  }
+
+  .lb-count {
+    font-size: 0.85rem;
+    color: #aaa;
+    width: 80px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .histogram {
+    margin-top: 30px;
+    display: none;
+  }
+
+  .histogram.active { display: block; }
+
+  .histogram h3 {
+    font-size: 0.9rem;
+    color: #aaa;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .histo-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 0.85rem;
+  }
+
+  .histo-label {
+    width: 20px;
+    text-align: right;
+    color: #999;
+    font-weight: 600;
+  }
+
+  .histo-bar {
+    height: 18px;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .histo-count {
+    color: #bbb;
+    font-size: 0.8rem;
+  }
+
+  .you-marker {
+    font-weight: 700;
+    font-size: 0.8rem;
+    margin-left: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>How Far From Aghion?</h1>
+<p class="subtitle">The coauthor distance to Philippe Aghion across 55,000 economists</p>
+<p class="call-to-action">Try it — search your name!</p>
+
+<div class="search-box">
+  <input type="text" id="search" placeholder="Type a researcher's name..." autocomplete="off" disabled>
+  <div class="autocomplete-list" id="autocomplete"></div>
+</div>
+
+<div class="result" id="result">
+  <div class="distance-display" id="distance-num"></div>
+  <div class="distance-label" id="distance-label"></div>
+  <div class="path-container" id="path-display"></div>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat">
+      <div class="stat-num" id="stat-pct"></div>
+      <div class="stat-label">of economists are<br>at least this close</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-same"></div>
+      <div class="stat-label">researchers at<br>the same distance</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" style="color: #888">3.6</div>
+      <div class="stat-label">average distance<br>to Aghion</div>
+    </div>
+  </div>
+
+  <div class="histogram" id="histogram"></div>
+
+  <div class="fun-fact" id="fun-fact"></div>
+</div>
+
+<p class="not-found" id="not-found">Researcher not found in the RePEc network.<br>They may not have a registered RePEc profile.</p>
+
+<div class="leaderboard" id="leaderboard">
+  <h2>The Gatekeepers</h2>
+  <p class="leaderboard-sub">Which coauthors open the most doors to Aghion?<br>
+  Ranked by how many other economists they connect to beyond Aghion's direct network.</p>
+  <div class="leaderboard-list" id="leaderboard-list"></div>
+</div>
+
+<p class="loading" id="loading">Loading 55,000 researchers...</p>
+
+<p class="footer">Built from 86,677 RePEc person records · <a href="https://ideas.repec.org">IDEAS/RePEc</a></p>
+
+<script>
+let DATA = null;
+let nameIndex = [];
+let distCounts = {};
+let totalResearchers = 0;
+
+const COLORS = {
+  0: '#222222', 1: '#2E86AB', 2: '#1B998B',
+  3: '#E8871E', 4: '#7B2D8E', 5: '#D1495B', 6: '#3D5A80'
+};
+
+const FUN_FACTS = [
+  { d: 0, text: "Congratulations, you ARE Philippe Aghion!" },
+  { d: 1, text: "You are a <strong>direct coauthor</strong> of Philippe Aghion. You've published together!" },
+  { d: 2, text: "Just <strong>one person</strong> separates you from Aghion. That's closer than most Nobel laureates!" },
+  { d: 3, text: "Distance 3 is the <strong>most common</strong> — you're in the heart of the economics profession's Aghion orbit." },
+  { d: 4, text: "Distance 4 is still solid — <strong>43%</strong> of all registered economists on RePEc are further away." },
+  { d: 5, text: "Distance 5 puts you in the <strong>outer ring</strong>. Consider writing a paper with someone closer!" },
+  { d: 6, text: "Distance 6 — you're at the <strong>frontier</strong> of the Aghion-connected universe." },
+];
+
+function distanceColor(d) { return COLORS[d] || '#999'; }
+
+function distanceText(d) {
+  if (d === 0) return "That's Philippe Aghion himself!";
+  if (d === 1) return 'degree of separation — direct coauthor';
+  if (d === 2) return 'degrees of separation';
+  return d + ' degrees of separation';
+}
+
+function reconstructAllPaths(targetId, maxPaths = 20) {
+  // BFS backward through multi-predecessors to enumerate all shortest paths
+  // Each "partial" is a path built from target back to Aghion
+  const AGHION = 'pag175';
+  if (targetId === AGHION) return [[AGHION]];
+
+  let partials = [[targetId]];
+  let complete = [];
+  let safety = 10;
+
+  while (partials.length > 0 && safety-- > 0) {
+    const next = [];
+    for (const partial of partials) {
+      const head = partial[0];
+      if (head === AGHION) {
+        complete.push(partial);
+        if (complete.length >= maxPaths) return complete;
+        continue;
+      }
+      const preds = DATA.pred[head];
+      if (!preds) continue;
+      const predList = Array.isArray(preds) ? preds : [preds];
+      for (const p of predList) {
+        const newPath = [p, ...partial];
+        next.push(newPath);
+        if (next.length + complete.length > maxPaths * 5) break;
+      }
+      if (next.length + complete.length > maxPaths * 5) break;
+    }
+    partials = next;
+  }
+  // Collect any remaining completes
+  for (const p of partials) {
+    if (p[0] === AGHION) {
+      complete.push(p);
+      if (complete.length >= maxPaths) break;
+    }
+  }
+  return complete.length > 0 ? complete.slice(0, maxPaths) : [[targetId]];
+}
+
+function buildHistogram(yourDistance, yourName) {
+  const container = document.getElementById('histogram');
+  container.innerHTML = '<h3>Distance distribution across all economists</h3>';
+
+  const maxCount = Math.max(...Object.values(distCounts));
+  const maxBarWidth = 260;
+
+  for (let d = 1; d <= 6; d++) {
+    const count = distCounts[d] || 0;
+    const row = document.createElement('div');
+    row.className = 'histo-bar-row';
+
+    const label = document.createElement('span');
+    label.className = 'histo-label';
+    label.textContent = d;
+
+    const bar = document.createElement('div');
+    bar.className = 'histo-bar';
+    bar.style.width = Math.max(2, (count / maxCount) * maxBarWidth) + 'px';
+    bar.style.background = distanceColor(d);
+    bar.style.opacity = d === yourDistance ? '1' : '0.35';
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'histo-count';
+    countSpan.textContent = count.toLocaleString();
+
+    if (d === yourDistance) {
+      const marker = document.createElement('span');
+      marker.className = 'you-marker';
+      marker.style.color = distanceColor(d);
+      marker.textContent = ' ← ' + yourName;
+      countSpan.appendChild(marker);
+    }
+
+    row.appendChild(label);
+    row.appendChild(bar);
+    row.appendChild(countSpan);
+    container.appendChild(row);
+  }
+
+  container.classList.add('active');
+}
+
+function showResult(entry) {
+  const resultEl = document.getElementById('result');
+  document.getElementById('not-found').classList.remove('active');
+
+  const d = entry.distance;
+  const allPaths = d === 0 ? [[entry.id]] : reconstructAllPaths(entry.id, 15);
+
+  document.getElementById('distance-num').textContent = d;
+  document.getElementById('distance-num').style.color = distanceColor(d);
+  document.getElementById('distance-label').textContent = distanceText(d);
+
+  // Path display — show all paths, each on its own line
+  const pathEl = document.getElementById('path-display');
+  pathEl.innerHTML = '';
+
+  const nameMap = {};
+  DATA.researchers.forEach(r => nameMap[r.id] = r.name);
+
+  allPaths.forEach((path, pathIdx) => {
+    const row = document.createElement('div');
+    row.className = 'path-row';
+
+    path.forEach((id, i) => {
+      if (i > 0) {
+        const arrow = document.createElement('span');
+        arrow.className = 'path-arrow';
+        arrow.textContent = '→';
+        row.appendChild(arrow);
+      }
+      const node = document.createElement('span');
+      node.className = 'path-node';
+      if (i === 0) node.classList.add('highlight');
+      if (i === path.length - 1 && d > 0) node.classList.add('target');
+      node.textContent = nameMap[id] || id;
+      row.appendChild(node);
+    });
+
+    pathEl.appendChild(row);
+  });
+
+  if (allPaths.length >= 15) {
+    const more = document.createElement('div');
+    more.className = 'path-more';
+    more.textContent = 'and more paths...';
+    pathEl.appendChild(more);
+  }
+
+  // Stats
+  let closerOrEqual = 0;
+  for (let i = 0; i <= d; i++) closerOrEqual += (distCounts[i] || 0);
+  const pct = ((closerOrEqual / totalResearchers) * 100).toFixed(1);
+  document.getElementById('stat-pct').textContent = pct + '%';
+  document.getElementById('stat-pct').style.color = distanceColor(d);
+  document.getElementById('stat-same').textContent = (distCounts[d] || 0).toLocaleString();
+  document.getElementById('stat-same').style.color = distanceColor(d);
+
+  // Histogram
+  buildHistogram(d, entry.name.split(' ').pop());
+
+  // Fun fact
+  const factEl = document.getElementById('fun-fact');
+  const fact = FUN_FACTS.find(f => f.d === d) || FUN_FACTS[FUN_FACTS.length - 1];
+  factEl.innerHTML = fact.text;
+  factEl.style.display = d >= 0 ? 'block' : 'none';
+
+  resultEl.classList.add('active');
+}
+
+function setupAutocomplete() {
+  const input = document.getElementById('search');
+  const list = document.getElementById('autocomplete');
+  let selectedIdx = -1;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    list.innerHTML = '';
+    selectedIdx = -1;
+
+    document.getElementById('result').classList.remove('active');
+    document.getElementById('not-found').classList.remove('active');
+
+    if (q.length < 2) {
+      list.classList.remove('active');
+      return;
+    }
+
+    const tokens = q.split(/\s+/);
+
+    // Prioritize: starts-with matches first, then includes
+    const matches = nameIndex.filter(e => {
+      const nameLow = e.name.toLowerCase();
+      return tokens.every(t => nameLow.includes(t));
+    });
+
+    // Sort: prefer last-name-starts-with, then distance
+    matches.sort((a, b) => {
+      const aLast = a.name.split(' ').pop().toLowerCase();
+      const bLast = b.name.split(' ').pop().toLowerCase();
+      const aStarts = aLast.startsWith(tokens[tokens.length - 1]) ? 0 : 1;
+      const bStarts = bLast.startsWith(tokens[tokens.length - 1]) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.distance - b.distance;
+    });
+
+    const top = matches.slice(0, 10);
+
+    if (top.length === 0) {
+      list.classList.remove('active');
+      return;
+    }
+
+    top.forEach((m) => {
+      const div = document.createElement('div');
+      div.className = 'autocomplete-item';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = m.name;
+
+      const badge = document.createElement('span');
+      badge.className = 'distance-badge';
+      badge.style.background = distanceColor(m.distance);
+      badge.textContent = m.distance === 0 ? '\u2605' : m.distance;
+
+      div.appendChild(nameSpan);
+      div.appendChild(badge);
+
+      div.addEventListener('click', () => {
+        input.value = m.name;
+        list.classList.remove('active');
+        showResult(m);
+      });
+
+      list.appendChild(div);
+    });
+
+    list.classList.add('active');
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = list.querySelectorAll('.autocomplete-item');
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIdx = Math.min(selectedIdx + 1, items.length - 1);
+      items.forEach((it, i) => it.classList.toggle('selected', i === selectedIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIdx = Math.max(selectedIdx - 1, 0);
+      items.forEach((it, i) => it.classList.toggle('selected', i === selectedIdx));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIdx >= 0 && selectedIdx < items.length) {
+        items[selectedIdx].click();
+      } else if (items.length > 0) {
+        items[0].click();
+      }
+    } else if (e.key === 'Escape') {
+      list.classList.remove('active');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-box')) {
+      list.classList.remove('active');
+    }
+  });
+}
+
+function buildLeaderboard() {
+  if (!DATA.bridges) return;
+  const container = document.getElementById('leaderboard');
+  const list = document.getElementById('leaderboard-list');
+  const maxCount = DATA.bridges[0].count;
+
+  DATA.bridges.forEach((b, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row';
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => {
+      const entry = nameIndex.find(e => e.id === b.id);
+      if (entry) {
+        document.getElementById('search').value = entry.name;
+        showResult(entry);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    const rank = document.createElement('span');
+    rank.className = 'lb-rank';
+    if (i === 0) rank.classList.add('gold');
+    else if (i === 1) rank.classList.add('silver');
+    else if (i === 2) rank.classList.add('bronze');
+    rank.textContent = i + 1;
+
+    const name = document.createElement('span');
+    name.className = 'lb-name';
+    name.textContent = b.name.replace(/\s+/g, ' ').trim();
+
+    const barWrap = document.createElement('div');
+    barWrap.className = 'lb-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'lb-bar';
+    bar.style.width = ((b.count / maxCount) * 100) + '%';
+    barWrap.appendChild(bar);
+
+    const count = document.createElement('span');
+    count.className = 'lb-count';
+    count.textContent = b.count.toLocaleString() + ' connections';
+
+    row.appendChild(rank);
+    row.appendChild(name);
+    row.appendChild(barWrap);
+    row.appendChild(count);
+    list.appendChild(row);
+  });
+
+  container.classList.add('active');
+}
+
+async function init() {
+  try {
+    const resp = await fetch('path_data.json');
+    DATA = await resp.json();
+
+    nameIndex = DATA.researchers.map(r => ({
+      name: r.name,
+      id: r.id,
+      distance: r.distance
+    }));
+
+    // Compute distance distribution
+    totalResearchers = nameIndex.length;
+    nameIndex.forEach(r => {
+      distCounts[r.distance] = (distCounts[r.distance] || 0) + 1;
+    });
+
+    nameIndex.sort((a, b) => a.name.localeCompare(b.name));
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('search').disabled = false;
+    document.getElementById('search').focus();
+
+    setupAutocomplete();
+    buildLeaderboard();
+  } catch (err) {
+    document.getElementById('loading').textContent = 'Error loading data: ' + err.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
