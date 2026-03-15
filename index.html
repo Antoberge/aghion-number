@@ -218,6 +218,16 @@
 
   .fun-fact strong { color: #444; }
 
+  .pa-image {
+    display: none;
+    margin: 24px auto 0;
+    max-width: 280px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  }
+
+  .pa-image.active { display: block; }
+
   .footer {
     margin-top: auto;
     padding-top: 60px;
@@ -472,6 +482,7 @@
   <div class="histogram" id="histogram"></div>
 
   <div class="fun-fact" id="fun-fact"></div>
+  <img class="pa-image" id="pa-image" alt="Philippe Aghion">
 
   <div class="network-panel" id="network-panel">
     <div class="network-header">
@@ -689,6 +700,15 @@ function showResult(entry) {
   const fact = FUN_FACTS.find(f => f.d === d) || FUN_FACTS[FUN_FACTS.length - 1];
   factEl.innerHTML = fact.text;
   factEl.style.display = d >= 0 ? 'block' : 'none';
+
+  // Show PA image matching distance
+  const paImg = document.getElementById('pa-image');
+  if (d >= 1 && d <= 5) {
+    paImg.src = 'PA_' + d + '.png';
+    paImg.classList.add('active');
+  } else {
+    paImg.classList.remove('active');
+  }
 
   resultEl.classList.add('active');
 }
