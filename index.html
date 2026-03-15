@@ -218,15 +218,32 @@
 
   .fun-fact strong { color: #444; }
 
+  .result-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+  }
+
+  .result-top-text {
+    text-align: center;
+  }
+
   .pa-image {
     display: none;
-    margin: 24px auto 0;
-    max-width: 280px;
+    max-height: 220px;
+    width: auto;
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    flex-shrink: 0;
   }
 
   .pa-image.active { display: block; }
+
+  @media (max-width: 600px) {
+    .result-top { flex-direction: column; gap: 16px; }
+    .pa-image { max-height: 160px; }
+  }
 
   .footer {
     margin-top: auto;
@@ -460,8 +477,13 @@
 </div>
 
 <div class="result" id="result">
-  <div class="distance-display" id="distance-num"></div>
-  <div class="distance-label" id="distance-label"></div>
+  <div class="result-top">
+    <div class="result-top-text">
+      <div class="distance-display" id="distance-num"></div>
+      <div class="distance-label" id="distance-label"></div>
+    </div>
+    <img class="pa-image" id="pa-image" alt="Philippe Aghion">
+  </div>
   <div class="path-container" id="path-display"></div>
 
   <div class="stats-bar" id="stats-bar">
@@ -482,7 +504,6 @@
   <div class="histogram" id="histogram"></div>
 
   <div class="fun-fact" id="fun-fact"></div>
-  <img class="pa-image" id="pa-image" alt="Philippe Aghion">
 
   <div class="network-panel" id="network-panel">
     <div class="network-header">
