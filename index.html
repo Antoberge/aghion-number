@@ -231,9 +231,10 @@
 
   .pa-image {
     display: none;
-    max-height: 220px;
-    width: auto;
-    border-radius: 12px;
+    width: 180px;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 50%;
     box-shadow: 0 4px 16px rgba(0,0,0,0.10);
     flex-shrink: 0;
   }
@@ -242,7 +243,7 @@
 
   @media (max-width: 600px) {
     .result-top { flex-direction: column; gap: 16px; }
-    .pa-image { max-height: 160px; }
+    .pa-image { width: 140px; height: 140px; }
   }
 
   .footer {
